@@ -141,6 +141,11 @@
 
         fileInput.addEventListener("change", handleSelected);
 
+        const CHUNK_SIZE = 1024 * 1024; // 1 MB
+        let jsonContent;
+        let renderIndex = 0;
+        const RENDER_STEP = 5;
+
         function handleSelected(e) {
             const selectedFile = fileInput.files[0];
             filename = selectedFile.name;
@@ -165,10 +170,12 @@
             if (event.type === "load") {
                 try {
                     const content = JSON.parse(reader.result);
-                    displayJson(jsonView, content);
                     containerDiv.style.display = "none";
                     filenameElement.innerText = filename;
                     jsonContainerDiv.style.display = "flex";
+                    jsonContent = content;
+                    jsonView.innerHTML = "";
+                    renderNextPortion(true);
                 } catch (err) {
                     console.error(err);
                     errorElement.style.display = "block";
@@ -181,11 +188,8 @@
         function displayJson(element, data) {
             let type = '';
 
-            console.log(data)
-
             if (element.id !== 'json-view') type = Array.isArray(data) ? "json-array" : "json-object";
 
-            element.innerHTML = "";
             const ul = document.createElement("ul");
             ul.className = type;
 
@@ -232,6 +236,32 @@
                 element.appendChild(bracket);
             }
         }
+
+        function renderNextPortion(initialRender = false) {
+            const portion = Object.entries(jsonContent).slice(renderIndex, renderIndex + RENDER_STEP);
+            displayJson(jsonView, Object.fromEntries(portion));
+            renderIndex += RENDER_STEP;
+        }
+
+        window.addEventListener("scroll", function () {
+            const scrollY = window.scrollY || window.pageYOffset;
+
+            const documentHeight = Math.max(
+                document.body.scrollHeight,
+                document.documentElement.scrollHeight,
+                document.body.offsetHeight,
+                document.documentElement.offsetHeight,
+                document.body.clientHeight,
+                document.documentElement.clientHeight
+            );
+
+            const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+            if (scrollY + viewportHeight >= documentHeight) {
+                console.log("Scrolled to the bottom of the page");
+                renderNextPortion();
+            }
+        });
     </script>
 </body>
 </html>
