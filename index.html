@@ -13,23 +13,91 @@
             font-family: 'Inter', sans-serif;
         }
 
+        #container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            gap: 24px;
+        }
+
+        h1 {
+            font-size: 48px;
+        }
+
+        p {
+            font-size: 24px;
+        }
+
+        label {
+            border: 1px solid rgba(0, 0, 0, 0.7);
+            font-size: 16px;
+            border-radius: 5px;
+            padding: 6px 12px;
+            color: #000;
+            background: linear-gradient(to bottom, #E4E4E4, #F7F7F7);
+            cursor: pointer;
+            opacity: 70%;
+        }
+
+        label:hover {
+            transition: 0.7s ease;
+            background: linear-gradient(to bottom, #D6D6D6, #E4E4E4);
+            opacity: 90%;
+        }
+
+        #json-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #filename {
+            font-size: 32px;
+            margin-top: 24px;
+            margin-bottom: 24px;
+        }
+
         ul {
             list-style-type: none;
         }
 
+        pre {
+            font-size: 16px;
+        }
+
         .json-object {
-            margin-left: 20px;
+            margin-left: 4px;
             border-left: 1px solid #BFBFBF;
-            padding-left: 10px;
+            padding-left: 15px;
         }
 
         .json-array {
-            margin-left: 20px;
+            margin-left: 1px;
             border-left: 1px solid #BFBFBF;
-            padding-left: 10px;
+            padding-left: 15px;
+        }
+
+        .json-number {
+            color: #BFBFBF;
+        }
+
+        .json-property {
+            color: #4E9590;
+        }
+
+        .json-bracket, .json-bracket-end {
+            color: #F2CAB8;
+        }
+
+        .json-bracket-end {
+            margin-left: -1px;
         }
 
         #error {
+            font-size: 16px;
             color: #BF0E0E;
             display: none;
         }
@@ -40,34 +108,47 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <h1>JSON Tree Viewer</h1>
-    <p>Simple JSON Viewer that runs completely on-client. No data exchange</p>
-    <input id="file" type="file" />
-    <p id="error">Invalid file. Please load a valid JSON file.</p>
 
-    <div>
-        <pre id="json-view"></pre>
+    <div id="container">
+        <h1>JSON Tree Viewer</h1>
+        <p>Simple JSON Viewer that runs completely on-client. No data exchange</p>
+
+        <input type="file" id="file" hidden/>
+        <label for="file">Load JSON</label>
+
+        <p id="error">Invalid file. Please load a valid JSON file.</p>
+    </div>
+
+    <div id="json-container">
+        <div>
+            <h1 id="filename"></h1>
+            <pre id="json-view"></pre>
+        </div>
     </div>
 
     <script>
+        const containerDiv = document.getElementById("container");
         const fileInput = document.getElementById("file");
-        const jsonView = document.getElementById("json-view");
         const errorElement = document.getElementById("error");
+
+        const jsonContainerDiv = document.getElementById("json-container");
+        const filenameElement = document.getElementById("filename");
+        const jsonView = document.getElementById("json-view");
 
         const reader = new FileReader();
 
-        function handleEvent(event) {
-            console.log(`${event.type}: ${event.loaded} bytes transferred`);
+        let filename = "";
 
-            if (event.type === "load") {
-                try {
-                    const content = JSON.parse(reader.result);
-                    displayJson(jsonView, content);
-                } catch (err) {
-                    console.error(err);
-                    errorElement.style.display = "block";
-                }
-                
+        fileInput.addEventListener("change", handleSelected);
+
+        function handleSelected(e) {
+            const selectedFile = fileInput.files[0];
+            filename = selectedFile.name;
+            errorElement.style.display = "none";
+
+            if (selectedFile) {
+                addListeners(reader);
+                reader.readAsText(selectedFile);
             }
         }
 
@@ -80,41 +161,77 @@
             reader.addEventListener("abort", handleEvent);
         }
 
-        function handleSelected(e) {
-            const selectedFile = fileInput.files[0];
-            errorElement.style.display = "none";
-
-            if (selectedFile) {
-                addListeners(reader);
-                reader.readAsText(selectedFile);
+        function handleEvent(event) {
+            if (event.type === "load") {
+                try {
+                    const content = JSON.parse(reader.result);
+                    displayJson(jsonView, content);
+                    containerDiv.style.display = "none";
+                    filenameElement.innerText = filename;
+                    jsonContainerDiv.style.display = "flex";
+                } catch (err) {
+                    console.error(err);
+                    errorElement.style.display = "block";
+                    containerDiv.style.display = "flex";
+                }
+                
             }
         }
 
         function displayJson(element, data) {
-            const type = Array.isArray(data) ? "json-array" : "json-object";
+            let type = '';
+
+            console.log(data)
+
+            if (element.id !== 'json-view') type = Array.isArray(data) ? "json-array" : "json-object";
+
             element.innerHTML = "";
             const ul = document.createElement("ul");
             ul.className = type;
 
             for (const key in data) {
                 const li = document.createElement("li");
-                li.innerHTML = `<strong>${key}:</strong>`;
+                const span = document.createElement("span");
+
+                span.className = isNaN(key) ? 'json-property' : 'json-number';
+                span.innerHTML = `${key}: `;
+
+                li.appendChild(span);
                 ul.appendChild(li);
+
                 const valueLi = document.createElement("li");
 
                 if (typeof data[key] === "object") {
                     displayJson(valueLi, data[key]);
+
+                    if (Array.isArray(data[key])) {
+                        const bracket = document.createElement("span");
+
+                        bracket.className = 'json-bracket';
+                        bracket.innerHTML = '[';
+
+                        li.appendChild(bracket);
+                    }
                 } else {
                     li.innerHTML += typeof data[key] === "string" ?  '"' + data[key] + '"' : data[key];
                 }
+
+                if (valueLi.innerHTML === "") continue;
 
                 ul.appendChild(valueLi);
             }
 
             element.appendChild(ul);
-        }
 
-        fileInput.addEventListener("change", handleSelected);
+            if (typeof data === "object" && Array.isArray(data)) {
+                const bracket = document.createElement("span");
+
+                bracket.className = 'json-bracket-end';
+                bracket.innerHTML = ']';
+
+                element.appendChild(bracket);
+            }
+        }
     </script>
 </body>
 </html>
