@@ -149,6 +149,7 @@
         let jsonContent;
         let renderIndex = 0;
         const RENDER_STEP = 5;
+        let ARRAY_STEP = 0;
 
         function handleSelected(e) {
             const selectedFile = fileInput.files[0];
@@ -192,56 +193,91 @@
         function displayJson(element, data) {
             let type = '';
 
-            if (element.id !== 'json-view') type = Array.isArray(data) ? "json-array" : "json-object";
+            if (element.id !== 'json-view') {
+                type = Array.isArray(data) ? "json-array" : "json-object";
+            }
 
             const ul = document.createElement("ul");
             ul.className = type;
 
-            for (const key in data) {
-                const li = document.createElement("li");
-                const span = document.createElement("span");
+            if (Array.isArray(data)) {
+                const startIndex = ARRAY_STEP;
+                const endIndex = Math.min(startIndex + ARRAY_STEP, data.length);
 
-                span.className = isNaN(key) ? 'json-property' : 'json-number';
-                span.innerHTML = `${key}: `;
+                for (let i = startIndex; i < endIndex; i++) {
+                    const li = document.createElement("li");
+                    const span = document.createElement("span");
 
-                li.appendChild(span);
-                ul.appendChild(li);
+                    span.className = isNaN(i) ? 'json-property' : 'json-number';
+                    span.innerHTML = `${i}: `;
 
-                const valueLi = document.createElement("li");
+                    li.appendChild(span);
+                    ul.appendChild(li);
 
-                if (typeof data[key] === "object" && data[key] !== null) {
-                    displayJson(valueLi, data[key]);
+                    const valueLi = document.createElement("li");
 
-                    if (Array.isArray(data[key])) {
-                        const bracket = document.createElement("span");
-
-                        bracket.className = 'json-bracket';
-                        bracket.innerHTML = '[';
-
-                        li.appendChild(bracket);
+                    if (typeof data[i] === "object" && data[i] !== null) {
+                        displayJson(valueLi, data[i]);
+                    } else {
+                        li.innerHTML += typeof data[i] === "string"
+                            ?  '"' + data[i] + '"'
+                            : data[i] === null
+                            ? "null"
+                            : data[i];
                     }
-                } else {
-                    li.innerHTML += typeof data[key] === "string"
-                        ?  '"' + data[key] + '"'
-                        : data[key] === null
-                        ? "null"
-                        : data[key];
+
+                    ul.appendChild(li);
+
+                    if (valueLi.innerHTML === "") continue;
+
+                    ul.appendChild(valueLi);
                 }
 
-                if (valueLi.innerHTML === "") continue;
+                element.appendChild(ul);
 
-                ul.appendChild(valueLi);
-            }
+                if (data.length >= ARRAY_STEP){
+                    bracket = document.createElement("span");
 
-            element.appendChild(ul);
+                    bracket.className = 'json-bracket-end';
+                    bracket.innerHTML = ']';
 
-            if (typeof data === "object" && Array.isArray(data)) {
-                const bracket = document.createElement("span");
+                    element.appendChild(bracket);
+                }
 
-                bracket.className = 'json-bracket-end';
-                bracket.innerHTML = ']';
+                renderIndex += ARRAY_STEP;
+            } else {
+                for (const key in data) {
+                    const li = document.createElement("li");
+                    const span = document.createElement("span");
+                    span.className = isNaN(key) ? 'json-property' : 'json-number';
+                    span.innerHTML = `${key}: `;
+                    li.appendChild(span);
+                    ul.appendChild(li);
+                    const valueLi = document.createElement("li");
+                    
+                    if (Array.isArray(data[key])) {
+                        let bracket = document.createElement("span");
+                        bracket.className = 'json-bracket';
+                        bracket.innerHTML = '[';
+                        li.appendChild(bracket);
+                    }
 
-                element.appendChild(bracket);
+                    if (typeof data[key] === "object" && data[key] !== null) {
+                        displayJson(valueLi, data[key]);
+                    } else {
+                        li.innerHTML += typeof data[key] === "string"
+                            ? '"' + data[key] + '"'
+                            : data[key] === null
+                                ? "null"
+                                : data[key];
+                    }
+
+                    if (valueLi.innerHTML === "") continue;
+
+                    ul.appendChild(valueLi);
+                }
+
+                element.appendChild(ul);
             }
         }
 
